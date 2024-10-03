@@ -1,16 +1,16 @@
 import re
 import requests
 import os
-from bs4 import BeautifulSoup
 import time
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 import json
 from collections import OrderedDict
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
+import logging
+import sys
 
 def scrape_nzz(chrome, scroll_down=10):
     driver = chrome.get("https://www.nzz.ch")
@@ -94,7 +94,7 @@ def src_from_img_tags(img_tags):
             if len(meta) > max_imgs:
                 break
         else:
-            print(f"no src in {img}")
+            log.debug(f"no src in {img}")
 
     return meta
 
@@ -115,31 +115,40 @@ def download_imgs(meta: dict, out_dir: str, max_imgs=30):
                 if i == max_imgs:
                     break
         except ex:
-            print(f'error downloading file {url}: ex')
+            log.warning(f'error downloading file {url}: ex')
 
+
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        datefmt='%Y-%m-%d %H:%M%S',
+        stream=sys.stdout, 
+        level=logging.INFO)
+log = logging.getLogger('scraper')
 
 sites = { 'nzz.ch': scrape_nzz, 'tagesanzeiger.ch': scrape_tagesanzeiger, 'blick.ch': scrape_blick, '20min.ch': scrape_20min, 'srf.ch': scrape_srf }
 max_imgs = 30
 
-print(f'start scrape...')
+log.info(f'start scrape...')
 options = webdriver.ChromeOptions()
 chrome = webdriver.Remote(command_executor="http://localhost:4444", options=options)
-print(f'driver connected')
+try:
+    log.debug(f'driver connected')
+    
+    for site, img_tag_call in sites.items():
+        log.info(f'site: {site}')
+    
+        meta = img_tag_call(chrome)
+    
+        new_meta = OrderedDict()
+        for i, (file, dat) in enumerate(meta.items()):
+            new_meta[f'{i:04d}_{file}'] = dat
+            if i == max_imgs-1:
+                break
+    
+        log.info(f'downloading {len(new_meta)} images')
+    
+        out_dir = os.path.join('scraped', site, time.strftime("%Y-%m-%d_%H-%M-%S"))
+        download_imgs(new_meta, out_dir)
 
-for site, img_tag_call in sites.items():
-    print(f'site: {site}')
-
-    meta = img_tag_call(chrome)
-
-    new_meta = OrderedDict()
-    for i, (file, dat) in enumerate(meta.items()):
-        new_meta[f'{i:04d}_{file}'] = dat
-        if i == max_imgs-1:
-            break
-
-    print(f'downloading {len(new_meta)} images')
-
-    out_dir = os.path.join('scraped', site, time.strftime("%Y-%m-%d_%H-%M-%S"))
-    download_imgs(new_meta, out_dir)
-
-chrome.quit()
+finally:
+    chrome.quit()
