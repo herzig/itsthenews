@@ -130,25 +130,26 @@ max_imgs = 30
 
 log.info(f'start scrape...')
 options = webdriver.ChromeOptions()
-chrome = webdriver.Remote(command_executor="http://localhost:4444", options=options)
-try:
-    log.debug(f'driver connected')
-    
-    for site, img_tag_call in sites.items():
-        log.info(f'site: {site}')
-    
+
+for site, img_tag_call in sites.items():
+    log.info(f'site: {site}')
+
+    try:
+        chrome = webdriver.Remote(command_executor="http://localhost:4444", options=options)
+
         meta = img_tag_call(chrome)
-    
+
         new_meta = OrderedDict()
         for i, (file, dat) in enumerate(meta.items()):
             new_meta[f'{i:04d}_{file}'] = dat
             if i == max_imgs-1:
                 break
-    
+
         log.info(f'downloading {len(new_meta)} images')
-    
+
         out_dir = os.path.join('scraped', site, time.strftime("%Y-%m-%d_%H-%M-%S"))
         download_imgs(new_meta, out_dir)
-
-finally:
-    chrome.quit()
+    except Exception as e:
+        log.error(f'exception, ', e)
+    finally:
+        chrome.quit()
