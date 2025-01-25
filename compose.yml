@@ -1,0 +1,26 @@
+services:
+  selenium:
+    image: "selenium/standalone-chrome:129.0"
+    ports:
+      - "4444:4444"
+    shm_size: "2g"
+    healthcheck:
+      test: ["CMD", "/opt/bin/check-grid.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "local"
+  scraper:
+    build: .
+    volumes:
+      - scraped:/scraped
+    depends_on:
+      selenium:
+        condition: service_healthy
+        restart: true
+    logging:
+      driver: "local"
+volumes:
+  scraped:

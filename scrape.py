@@ -109,13 +109,14 @@ def download_imgs(meta: dict, out_dir: str, max_imgs=30):
             with open(os.path.join(out_dir, file), 'wb') as f:
                 url = dat['src']
                 if 'http' not in url:
-                    url = f'{site}{url}'
+                    url = f'https://{site}{url}'
                 response = requests.get(url)
                 f.write(response.content)
                 if i == max_imgs:
                     break
-        except ex:
-            log.warning(f'error downloading file {url}: ex')
+
+        except Exception as ex:
+            log.warning(f'error downloading file {url}: {ex}')
 
 
 logging.basicConfig(
@@ -135,7 +136,7 @@ for site, img_tag_call in sites.items():
     log.info(f'site: {site}')
 
     try:
-        chrome = webdriver.Remote(command_executor="http://localhost:4444", options=options)
+        chrome = webdriver.Remote(command_executor="http://selenium:4444", options=options)
 
         meta = img_tag_call(chrome)
 
@@ -149,7 +150,8 @@ for site, img_tag_call in sites.items():
 
         out_dir = os.path.join('scraped', site, time.strftime("%Y-%m-%d_%H-%M-%S"))
         download_imgs(new_meta, out_dir)
+
     except Exception as e:
-        log.error(f'exception, ', e)
+        log.error(f'exception {e}')
     finally:
         chrome.quit()
